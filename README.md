@@ -1,2 +1,2 @@
-# Play time brinquedos
-contador de tempo
+# App Brinquedo
+Controle de tempo das crianças no mini parque

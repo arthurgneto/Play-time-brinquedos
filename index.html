@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login - PlayTime Control</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      flex-direction: column;
+    }
+    input, button {
+      font-size: 1rem;
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+    }
+    input {
+      width: 250px;
+    }
+    button {
+      background-color: #28a745;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🎠 Login</h1>
+<input type="email" id="email" placeholder="Seu e-mail" />
+<input type="password" id="senha" placeholder="Sua senha" />
+<button onclick="login()">Entrar</button>
+<button onclick="registrar()">Cadastrar</button>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCGkUIaPo1tDkeqL7ZMwrviBdftNzS6-Ag",
+    authDomain: "controle-brinquedos.firebaseapp.com",
+    projectId: "controle-brinquedos",
+    storageBucket: "controle-brinquedos.appspot.com",
+    messagingSenderId: "660279692686",
+    appId: "1:660279692686:web:55f34bc47112d90165e8df"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  window.login = function () {
+    const email = document.getElementById('email').value;
+    const senha = document.getElementById('senha').value;
+    signInWithEmailAndPassword(auth, email, senha)
+      .then(() => window.location.href = 'controle.html')
+      .catch(err => alert('Erro ao entrar: ' + err.message));
+  }
+
+  window.registrar = function () {
+    const email = document.getElementById('email').value;
+    const senha = document.getElementById('senha').value;
+    createUserWithEmailAndPassword(auth, email, senha)
+      .then(() => window.location.href = 'controle.html')
+      .catch(err => alert('Erro ao cadastrar: ' + err.message));
+  }
+</script>
+
+</body>
+</html>

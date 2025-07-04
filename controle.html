@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Controle de Brinquedos</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0; padding: 20px;
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    input, button {
+      font-size: 1.1rem;
+      padding: 8px 12px;
+      margin: 5px;
+      border: none;
+      border-radius: 6px;
+    }
+    #nome {
+      width: 80vw;
+      max-width: 300px;
+    }
+    .criança {
+      background: rgba(255,255,255,0.15);
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 10px;
+      width: 95%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .nome-tempo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .timer {
+      font-size: 1.8rem;
+      font-weight: bold;
+      min-width: 90px;
+      text-align: center;
+    }
+    .warning {
+      background-color: yellow;
+      color: black;
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+    .botoes {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 5px;
+      margin-top: 10px;
+      width: 100%;
+    }
+    #relatorio {
+      background: rgba(0,0,0,0.3);
+      margin-top: 30px;
+      padding: 15px;
+      border-radius: 10px;
+      width: 95%;
+      max-width: 500px;
+    }
+    .btn-limpar {
+      background: red;
+      color: white;
+    }
+    .btn { background: #28a745; color: white; }
+    .btn-stop { background: #dc3545; color: white; }
+    .btn-opcao { background: #333; color: white; }
+    #logout {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #ff5722;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🎠 Controle de Brinquedos</h1>
+<button id="logout" onclick="logout()">🚪 Sair</button>
+
+<input type="text" id="nome" placeholder="Nome da criança" />
+<button onclick="adicionarCrianca()">➕ Adicionar</button>
+
+<div id="lista"></div>
+
+<div id="relatorio">
+  <h2>📊 Relatório</h2>
+  <p><strong>Nº de crianças:</strong> <span id="totalCriancas">0</span></p>
+  <p><strong>Tempo total:</strong> <span id="tempoTotal">0</span> min</p>
+  <p><strong>Total recebido:</strong> R$ <span id="valorTotal">0,00</span></p>
+  <button class="btn-limpar" onclick="limparRelatorio()">🗑️ Limpar relatório</button>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCGkUIaPo1tDkeqL7ZMwrviBdftNzS6-Ag",
+    authDomain: "controle-brinquedos.firebaseapp.com",
+    projectId: "controle-brinquedos",
+    storageBucket: "controle-brinquedos.appspot.com",
+    messagingSenderId: "660279692686",
+    appId: "1:660279692686:web:55f34bc47112d90165e8df"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let userId = null;
+  let criancas = [];
+  let relatorio = [];
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      userId = user.uid;
+      console.log("Usuário logado:", user.email);
+    } else {
+      window.location.href = "index.html";
+    }
+  });
+
+  function logout() {
+    signOut(auth).then(() => window.location.href = "index.html");
+  }
+
+  function formatarTempo(s) {
+    const min = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+  }
+
+  function adicionarCrianca() {
+    const nome = document.getElementById('nome').value.trim();
+    if (!nome) return alert('Digite o nome da criança!');
+    document.getElementById('nome').value = '';
+
+    const id = Date.now();
+    const div = document.createElement('div');
+    div.className = 'criança';
+    div.id = 'crianca-' + id;
+    div.innerHTML = `
+      <div class="nome-tempo">
+        <strong>${nome}</strong>
+        <div class="timer" id="timer-${id}">00:00</div>
+      </div>
+      <div class="botoes">
+        <button class="btn-opcao" onclick="iniciarTemporizado(${id}, 10, 7)">+10min (R$7)</button>
+        <button class="btn-opcao" onclick="iniciarTemporizado(${id}, 20, 14)">+20min (R$14)</button>
+        <button class="btn-opcao" onclick="iniciarTemporizado(${id}, 30, 20)">+30min (R$20)</button>
+        <button class="btn" onclick="iniciarLivre(${id})">Livre</button>
+        <button class="btn-stop" onclick="encerrar(${id})">⏹️ Encerrar</button>
+      </div>
+    `;
+    document.getElementById('lista').appendChild(div);
+
+    criancas.push({ id, nome, segundos: 0, intervalo: null, tipo: null, valor: 0, contratado: null });
+  }
+
+  function iniciarTemporizado(id, minutos, valorBase) {
+    pararAnterior(id);
+    const crianca = criancas.find(c => c.id === id);
+    let tempoRestante = minutos * 60;
+    const timerEl = document.getElementById(`timer-${id}`);
+    crianca.tipo = 'temporizado';
+    crianca.valor = valorBase;
+    crianca.contratado = minutos;
+
+    crianca.intervalo = setInterval(() => {
+      tempoRestante--;
+      crianca.segundos++;
+      timerEl.textContent = formatarTempo(tempoRestante);
+
+      if (tempoRestante <= 120 && tempoRestante > 0) {
+        timerEl.classList.add('warning');
+      } else {
+        timerEl.classList.remove('warning');
+      }
+
+      if (tempoRestante <= 0) {
+        clearInterval(crianca.intervalo);
+        alert(`⏰ Tempo esgotado para ${crianca.nome}!`);
+      }
+    }, 1000);
+  }
+
+  function iniciarLivre(id) {
+    pararAnterior(id);
+    const crianca = criancas.find(c => c.id === id);
+    const timerEl = document.getElementById(`timer-${id}`);
+    crianca.tipo = 'livre';
+    crianca.valor = null;
+    crianca.contratado = null;
+
+    crianca.intervalo = setInterval(() => {
+      crianca.segundos++;
+      timerEl.textContent = formatarTempo(crianca.segundos);
+      if (crianca.segundos >= 8*60 && crianca.segundos < 10*60) {
+        timerEl.classList.add('warning');
+      } else {
+        timerEl.classList.remove('warning');
+      }
+    }, 1000);
+  }
+
+  function pararAnterior(id) {
+    const crianca = criancas.find(c => c.id === id);
+    if (crianca.intervalo) clearInterval(crianca.intervalo);
+  }
+
+  async function encerrar(id) {
+    const crianca = criancas.find(c => c.id === id);
+    clearInterval(crianca.intervalo);
+    const minutos = Math.ceil(crianca.segundos / 60);
+    let valor = 0;
+
+    if (crianca.tipo === 'livre') {
+      valor = minutos * 0.66;
+    } else if (crianca.tipo === 'temporizado') {
+      const contratado = crianca.contratado;
+      if (contratado === 10) valor = 7;
+      else if (contratado === 20) {
+        if (minutos <= 15) valor = 10;
+        else if (minutos <= 20) valor = 14;
+        else valor = minutos * 0.66;
+      } else if (contratado === 30) {
+        if (minutos <= 20) valor = 14;
+        else if (minutos <= 25) valor = 16;
+        else if (minutos <= 30) valor = 20;
+        else valor = minutos * 0.66;
+      }
+    }
+
+    const confirmar = confirm(
+      `Finalizar ${crianca.nome}?\nTempo: ${minutos} min\nValor a cobrar: R$ ${valor.toFixed(2).replace('.', ',')}`
+    );
+    if (!confirmar) return;
+
+    relatorio.push({ nome: crianca.nome, minutos, valor });
+    await addDoc(collection(db, `usuarios/${userId}/registros`), {
+      nome: crianca.nome,
+      minutos,
+      valor,
+      timestamp: new Date()
+    });
+
+    atualizarRelatorio();
+    document.getElementById('crianca-' + id).remove();
+    criancas = criancas.filter(c => c.id !== id);
+  }
+
+  function atualizarRelatorio() {
+    const totalCriancas = relatorio.length;
+    const tempoTotal = relatorio.reduce((acc, r) => acc + r.minutos, 0);
+    const valorTotal = relatorio.reduce((acc, r) => acc + r.valor, 0);
+
+    document.getElementById('totalCriancas').textContent = totalCriancas;
+    document.getElementById('tempoTotal').textContent = tempoTotal;
+    document.getElementById('valorTotal').textContent = valorTotal.toFixed(2).replace('.', ',');
+  }
+
+  async function limparRelatorio() {
+    if (!confirm('Tem certeza que deseja apagar todo o relatório?')) return;
+    const snapshot = await getDocs(collection(db, `usuarios/${userId}/registros`));
+    snapshot.forEach(async docSnap => {
+      await deleteDoc(doc(db, `usuarios/${userId}/registros`, docSnap.id));
+    });
+    relatorio = [];
+    atualizarRelatorio();
+  }
+</script>
+
+</body>
+</html>
